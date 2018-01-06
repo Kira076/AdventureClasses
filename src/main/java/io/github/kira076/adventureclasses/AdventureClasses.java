@@ -3,19 +3,26 @@ package io.github.kira076.adventureclasses;
 import javax.annotation.Nonnull;
 import javax.inject.Inject;
 
-import io.github.kira076.adventureclasses.catalogtypes.ClassType;
-import io.github.kira076.adventureclasses.catalogtypes.ClassTypeRegistryModule;
+import com.google.common.reflect.TypeToken;
+import io.github.kira076.adventureclasses.catalogtypes.classes.ClassType;
+import io.github.kira076.adventureclasses.catalogtypes.classes.ClassTypeRegistryModule;
+import io.github.kira076.adventureclasses.catalogtypes.styles.StyleType;
+import io.github.kira076.adventureclasses.catalogtypes.styles.StyleTypeRegistryModule;
+import io.github.kira076.adventureclasses.catalogtypes.styles.StyleTypes;
+import io.github.kira076.adventureclasses.commands.AdminCommands;
 import io.github.kira076.adventureclasses.commands.ClassCommands;
+import io.github.kira076.adventureclasses.commands.DebugCommands;
+import io.github.kira076.adventureclasses.io.ConfigManager;
+import io.github.kira076.adventureclasses.utils.StyleSerializer;
+import ninja.leaping.configurate.objectmapping.serialize.TypeSerializers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongepowered.api.Game;
 import org.spongepowered.api.Sponge;
-import org.spongepowered.api.command.spec.CommandSpec;
 import org.spongepowered.api.config.ConfigDir;
 import org.spongepowered.api.plugin.Plugin;
 import org.spongepowered.api.event.Listener;
 import org.spongepowered.api.event.game.state.GameConstructionEvent;
-import org.spongepowered.api.event.game.state.GamePreInitializationEvent;
 import org.spongepowered.api.event.game.state.GameInitializationEvent;
 import org.spongepowered.api.plugin.PluginContainer;
 
@@ -34,6 +41,7 @@ public class AdventureClasses {
     private final Logger logger;
     private final Path configdir;
     private final PluginContainer container;
+    private final ConfigManager configer;
 
     @Inject
     public AdventureClasses(final Game game, @ConfigDir(sharedRoot = false) final Path path, final PluginContainer container) {
@@ -41,6 +49,7 @@ public class AdventureClasses {
         this.container = container;
         this.logger = LoggerFactory.getLogger("AdventureClasses");
         this.configdir = path;
+        this.configer = new ConfigManager(this, this.configdir);
 
         if (!Files.exists(path)) {
             try { Files.createDirectory(path); }
@@ -51,13 +60,26 @@ public class AdventureClasses {
     @Listener
     public void onGameConstruction(GameConstructionEvent e) {
         Sponge.getRegistry().registerModule(ClassType.class, new ClassTypeRegistryModule());
+        Sponge.getRegistry().registerModule(StyleType.class, new StyleTypeRegistryModule());
+
+        this.configer.registerConfig("conf", "config.conf");
+        this.configer.registerConfig("styles", "styles.conf");
+
+
     }
 
     @Listener
     public void onInit(GameInitializationEvent e) {
+        TypeSerializers.getDefaultSerializers().registerType(TypeToken.of(StyleType.class), new StyleSerializer());
+
+        StyleTypes.setStylesNode(this.configer);
+
         Sponge.getCommandManager().register(this, ClassCommands.trainCommand, "train");
+        Sponge.getCommandManager().register(this, DebugCommands.identCommand, "identify");
+        Sponge.getCommandManager().register(this, AdminCommands.adminCommand, "advadmin");
     }
 
     @Nonnull public Logger getLogger() { return this.logger; }
     @Nonnull public PluginContainer getContainer() { return this.container; }
+    @Nonnull public ConfigManager getConfiger() { return this.configer; }
 }
